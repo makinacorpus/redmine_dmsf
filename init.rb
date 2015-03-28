@@ -152,6 +152,7 @@ Redmine::Plugin.register :redmine_dmsf do
 end
 
 Redmine::Search.map do |search|
-  search.register :dmsf_files
-  search.register :dmsf_folders
+        puts "deactivated"
+#  search.register :dmsf_files
+#  search.register :dmsf_folders
 end
