@@ -315,6 +315,7 @@ class DmsfFile < ActiveRecord::Base
 
     project_conditions = []
     project_conditions << (Project.allowed_to_condition(User.current, :view_dmsf_files))
+
     project_conditions << "#{DmsfFile.table_name}.project_id IN (#{projects.collect(&:id).join(',')})" unless projects.nil?
 
     results = []
@@ -339,89 +340,95 @@ class DmsfFile < ActiveRecord::Base
         Rails.logger.warn e.message
       end
 
-      if database
-        enquire = Xapian::Enquire.new(database)
+      #if database
+      #  enquire = Xapian::Enquire.new(database)
 
-        query_string = tokens.join(' ')
-        qp = Xapian::QueryParser.new()
-        stemmer = Xapian::Stem.new(lang)
-        qp.stemmer = stemmer
-        qp.database = database
+      #  query_string = tokens.join(' ')
+      #  qp = Xapian::QueryParser.new()
+      #  stemmer = Xapian::Stem.new(lang)
+      #  qp.stemmer = stemmer
+      #  qp.database = database
 
-        case Setting.plugin_redmine_dmsf['dmsf_stemming_strategy'].strip
-          when 'STEM_NONE'
-            qp.stemming_strategy = Xapian::QueryParser::STEM_NONE
-          when 'STEM_SOME'
-            qp.stemming_strategy = Xapian::QueryParser::STEM_SOME
-          when 'STEM_ALL'
-            qp.stemming_strategy = Xapian::QueryParser::STEM_ALL
-        end
+      #  case Setting.plugin_redmine_dmsf['dmsf_stemming_strategy'].strip
+      #    when 'STEM_NONE'
+      #      qp.stemming_strategy = Xapian::QueryParser::STEM_NONE
+      #    when 'STEM_SOME'
+      #      qp.stemming_strategy = Xapian::QueryParser::STEM_SOME
+      #    when 'STEM_ALL'
+      #      qp.stemming_strategy = Xapian::QueryParser::STEM_ALL
+      #  end
 
-        if options[:all_words]
-          qp.default_op = Xapian::Query::OP_AND
-        else
-          qp.default_op = Xapian::Query::OP_OR
-        end
+      #  if options[:all_words]
+      #    qp.default_op = Xapian::Query::OP_AND
+      #  else
+      #    qp.default_op = Xapian::Query::OP_OR
+      #  end
 
-        query = qp.parse_query(query_string)
+      #  query = qp.parse_query(query_string)
 
-        enquire.query = query
-        matchset = enquire.mset(0, 1000)
+      #  enquire.query = query
+      #  matchset = enquire.mset(0, 1000)
 
-        if matchset
-          matchset.matches.each {|m|
-            docdata = m.document.data{url}
-            dochash = Hash[*docdata.scan(/(url|sample|modtime|type|size)=\/?([^\n\]]+)/).flatten]
-            filename = dochash['url']
-            if filename
-              dmsf_attrs = filename.scan(/^([^\/]+\/[^_]+)_([\d]+)_(.*)$/)
-              id_attribute = 0
-              id_attribute = dmsf_attrs[0][1] if dmsf_attrs.length > 0
-              next if dmsf_attrs.length == 0 || id_attribute == 0
-              next unless results.select{|f| f.id.to_s == id_attribute}.empty?
+      #  if matchset
+      #    matchset.matches.each {|m|
+      #      docdata = m.document.data{url}
+      #      dochash = Hash[*docdata.scan(/(url|sample|modtime|type|size)=\/?([^\n\]]+)/).flatten]
+      #      filename = dochash['url']
+      #      if filename
+      #        dmsf_attrs = filename.scan(/^([^\/]+\/[^_]+)_([\d]+)_(.*)$/)
+      #        id_attribute = 0
+      #        id_attribute = dmsf_attrs[0][1] if dmsf_attrs.length > 0
+      #        next if dmsf_attrs.length == 0 || id_attribute == 0
+      #        next unless results.select{|f| f.id.to_s == id_attribute}.empty?
 
-              dmsf_file = DmsfFile.where(limit_options[:conditions]).where(:id => id_attribute, :deleted => false).first
+      #        dmsf_file = DmsfFile.where(limit_options[:conditions]).where(:id => id_attribute, :deleted => false).first
 
-              if dmsf_file
-                if options[:offset]
-                  if options[:before]
-                    next if dmsf_file.updated_at < options[:offset]
-                  else
-                    next if dmsf_file.updated_at > options[:offset]
-                  end
-                end
+      #        if dmsf_file
+      #          if options[:offset]
+      #            if options[:before]
+      #              next if dmsf_file.updated_at < options[:offset]
+      #            else
+      #              next if dmsf_file.updated_at > options[:offset]
+      #            end
+      #          end
 
-                allowed = User.current.allowed_to?(:view_dmsf_files, dmsf_file.project)
-                project_included = false
-                project_included = true unless projects
-                unless project_included
-                  projects.each do |x|
-                    if x.is_a?(ActiveRecord::Relation)
-                      project_included = x.first.id == dmsf_file.project.id
-                    else
-                      if dmsf_file.project
-                        project_included = x[:id] == dmsf_file.project.id
-                      else
-                        project_included = false
-                      end
-                    end
-                  end
-                end
+      #          allowed = User.current.allowed_to?(:view_dmsf_files, dmsf_file.project)
+      #          project_included = false
+      #          project_included = true unless projects
+      #          unless project_included
+      #            projects.each do |x|
+      #              if x.is_a?(ActiveRecord::Relation)
+      #                project_included = x.first.id == dmsf_file.project.id
+      #              else
+      #                if dmsf_file.project
+      #                  project_included = x[:id] == dmsf_file.project.id
+      #                else
+      #                  project_included = false
+      #                end
+      #              end
+      #            end
+      #          end
 
-                if (allowed && project_included)
-                  dmsf_file.event_description = dochash['sample'].force_encoding('UTF-8') if dochash['sample']
-                  results.push(dmsf_file)
-                  results_count += 1
-                end
-              end
-            end
-          }
-        end
-      end
+      #          if (allowed && project_included)
+      #            dmsf_file.event_description = dochash['sample'].force_encoding('UTF-8') if dochash['sample']
+      #            results.push(dmsf_file)
+      #            results_count += 1
+      #          end
+      #        end
+      #      end
+      #    }
+      #  end
+      #end
     end
 
     [results, results_count]
   end
+
+  def self.search_result_ranks_and_ids(tokens, user=User.current, projects=nil, options={})
+    r = self.search(tokens, projects, options)[0]
+    r.each_index { |x| [x, r[1][x]]} 
+  end
+
 
   def display_name
     if self.name.length > 50

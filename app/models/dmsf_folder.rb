@@ -339,6 +339,12 @@ class DmsfFolder < ActiveRecord::Base
     last_update
   end
 
+  def self.search_result_ranks_and_ids(tokens, user=User.current, projects=nil, options={})
+    r = self.search(tokens, :user => user, :projects => projects, :options=> options)
+    r
+  end
+
+
   private
 
   def self.directory_subtree(tree, folder, level, current_folder)
